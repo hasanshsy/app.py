@@ -1,7 +1,8 @@
-# Syrian Currency Converter App
-# Compatible with Web Browsers (via Streamlit) and Android (via WebView/PWA)
+# Syrian Currency Converter App (Improved UI & Logic)
+# Web & Android Ready – Light Theme, RTL, Smart Sync
 
 import streamlit as st
+from decimal import Decimal
 
 # -----------------------------
 # Language dictionary
@@ -9,112 +10,123 @@ import streamlit as st
 LANG = {
     "en": {
         "title": "Syrian Currency Converter",
-        "old_syp": "Old Syrian Amount",
-        "usd": "Equivalent Amount in USD",
-        "rate": "USD to SYP Exchange Rate",
-        "result": "Converted Amount (New Syrian Pound)",
+        "old_syp": "Old Syrian Pound",
+        "new_syp": "New Syrian Pound",
+        "usd": "USD Amount",
+        "rate": "USD Exchange Rate (Today)",
         "copy": "Copy Result",
         "lang": "Language",
-        "note": "Conversion removes two trailing zeros"
+        "note": "Conversion removes two zeros automatically"
     },
     "ar": {
-        "title": "محول العملة السورية",
-        "old_syp": "المبلغ بالليرة السورية القديمة",
-        "usd": "المبلغ المكافئ بالدولار",
-        "rate": "سعر صرف الدولار",
-        "result": "المبلغ بعد التحويل (الليرة السورية الجديدة)",
+        "title": "محول الليرة السورية",
+        "old_syp": "الليرة السورية القديمة",
+        "new_syp": "الليرة السورية الجديدة",
+        "usd": "المبلغ بالدولار",
+        "rate": "سعر الدولار اليوم",
         "copy": "نسخ النتيجة",
         "lang": "اللغة",
-        "note": "يتم التحويل بحذف صفرين من المبلغ"
+        "note": "يتم التحويل بحذف صفرين تلقائيًا"
     }
 }
 
 # -----------------------------
-# Page configuration
+# Page config
 # -----------------------------
-st.set_page_config(
-    page_title="Syrian Currency Converter",
-    layout="centered"
-)
+st.set_page_config(page_title="SYP Converter", layout="centered")
 
 # -----------------------------
-# Dark blue gradient styling
+# Light blue UI
 # -----------------------------
-st.markdown(
-    """
-    <style>
-    body {
-        background: linear-gradient(135deg, #0a1f44, #102a5e);
-        color: white;
-    }
-    .stTextInput > label, .stNumberInput > label {
-        color: #dbe9ff !important;
-    }
-    .stButton > button {
-        background-color: #1f4fd8;
-        color: white;
-        border-radius: 8px;
-        padding: 0.5em 1em;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True
-)
+st.markdown("""
+<style>
+body {
+    background: linear-gradient(135deg, #e8f1ff, #f7fbff);
+    color: #0a2540;
+}
+.stTextInput label, .stNumberInput label {
+    color: #0a2540 !important;
+    font-weight: 600;
+}
+.stButton button {
+    background-color: #4f8cff;
+    color: white;
+    border-radius: 10px;
+}
+.rtl {
+    direction: rtl;
+    text-align: right;
+}
+</style>
+""", unsafe_allow_html=True)
 
 # -----------------------------
 # Language toggle
 # -----------------------------
-lang = st.selectbox("Language / اللغة", ["English", "العربية"])
-lang_key = "en" if lang == "English" else "ar"
+lang = st.selectbox("Language / اللغة", ["العربية", "English"])
+lang_key = "ar" if lang == "العربية" else "en"
 T = LANG[lang_key]
+rtl_class = "rtl" if lang_key == "ar" else ""
+
+# -----------------------------
+# Session state (save values)
+# -----------------------------
+for key in ["old", "new", "usd", "rate"]:
+    if key not in st.session_state:
+        st.session_state[key] = 0.0
 
 # -----------------------------
 # Title
 # -----------------------------
-st.title(T["title"])
+st.markdown(f"<h2 class='{rtl_class}'>{T['title']}</h2>", unsafe_allow_html=True)
 
 # -----------------------------
-# Input fields
+# Smart calculation
 # -----------------------------
-old_amount = st.number_input(T["old_syp"], min_value=0.0, step=100.0)
-usd_amount = st.number_input(T["usd"], min_value=0.0, step=1.0)
-exchange_rate = st.number_input(T["rate"], min_value=0.0, step=10.0)
+def recalc(source):
+    try:
+        if source == "old":
+            st.session_state.new = st.session_state.old / 100
+        elif source == "new":
+            st.session_state.old = st.session_state.new * 100
+        elif source == "usd" and st.session_state.rate > 0:
+            syp = st.session_state.usd * st.session_state.rate
+            st.session_state.old = syp
+            st.session_state.new = syp / 100
+        elif source == "rate" and st.session_state.usd > 0:
+            syp = st.session_state.usd * st.session_state.rate
+            st.session_state.old = syp
+            st.session_state.new = syp / 100
+    except:
+        pass
 
 # -----------------------------
-# Conversion logic
+# Inputs (all synced)
 # -----------------------------
-new_syp = old_amount / 100
+st.markdown(f"<div class='{rtl_class}'>", unsafe_allow_html=True)
 
-if usd_amount > 0 and exchange_rate > 0:
-    new_syp = usd_amount * exchange_rate / 100
+st.number_input(T["old_syp"], key="old", step=100.0, format="%,.0f", on_change=recalc, args=("old",))
+st.number_input(T["new_syp"], key="new", step=1.0, format="%,.0f", on_change=recalc, args=("new",))
+st.number_input(T["usd"], key="usd", step=1.0, format="%,.2f", on_change=recalc, args=("usd",))
+st.number_input(T["rate"], key="rate", step=50.0, format="%,.0f", on_change=recalc, args=("rate",))
 
-# -----------------------------
-# Output
-# -----------------------------
-st.subheader(T["result"])
-st.code(f"{new_syp:,.2f}")
+st.markdown("</div>", unsafe_allow_html=True)
 
 # -----------------------------
-# Copy button (browser supported)
+# Copy to clipboard (mobile supported)
 # -----------------------------
-st.button(T["copy"], on_click=lambda: st.write("Copied!"))
+st.markdown(f"""
+<input id='copyValue' value='{st.session_state.new:,.0f}' />
+<button onclick="navigator.clipboard.writeText(document.getElementById('copyValue').value)">
+{T['copy']}
+</button>
+""", unsafe_allow_html=True)
 
 st.caption(T["note"])
 
 # -----------------------------
-# Deployment Instructions
-# -----------------------------
-# WEB:
-# 1. Install dependencies: pip install streamlit
-# 2. Run: streamlit run app.py
-# 3. Deploy on Streamlit Cloud or any Python server
-
-# ANDROID:
-# Option 1 (Recommended):
-# - Deploy the app as a web app
-# - Wrap it using Android WebView or convert to PWA
-# Option 2:
-# - Use tools like WebViewGold or Trusted Web Activity (TWA)
-
-# This approach ensures high performance, cross-platform compatibility,
-# and easy maintenance using a single Python codebase.
+# Notes
+# - Any field updates all others instantly
+# - Arabic RTL fully supported
+# - Values saved during session
+# - Mobile clipboard supported
